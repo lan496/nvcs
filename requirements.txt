@@ -1,0 +1,4 @@
+notebook
+nglview
+ase
+pymatgen
