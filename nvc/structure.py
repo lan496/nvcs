@@ -6,7 +6,17 @@ from pymatgen.core.sites import PeriodicSite
 import numpy as np
 
 
-def viewer(structure: Structure, spacefill=True, show_axes=True) -> NGLWidget:
+def viewer(
+    structure: Structure,
+    show_unitcell: bool =True,
+    show_axes: bool =True,
+) -> NGLWidget:
+    """
+    Args:
+        structure:
+        show_unitcell: show frame of unit cell iff true
+        show_axes: show a, b, and c axes iff true
+    """
     eps = 1e-8
     sites = []
     for site in structure:
@@ -20,18 +30,35 @@ def viewer(structure: Structure, spacefill=True, show_axes=True) -> NGLWidget:
     structure_display = Structure.from_sites(sites)
 
     view = show_pymatgen(structure_display)
-    view.add_unitcell()
+    view.center()
+    if show_unitcell:
+        view.add_unitcell()
 
-    if spacefill:
-        view.add_spacefill(radius_type='vdw', radius=0.5, color_scheme='element')
-        view.remove_ball_and_stick()
-    else:
-        view.add_ball_and_stick()
+    view.add_spacefill(radius=0.5, color_scheme='element')
+    view.remove_ball_and_stick()
 
+    # Ref: https://github.com/pyiron/pyiron_atomistics/blob/c5df5e87745d7b575463f7b2a0b588e18007dc40/pyiron_atomistics/atomistics/structure/_visualize.py#L388-L403
     if show_axes:
-        view.shape.add_arrow([-4, -4, -4], [0, -4, -4], [1, 0, 0], 0.5, "x-axis")
-        view.shape.add_arrow([-4, -4, -4], [-4, 0, -4], [0, 1, 0], 0.5, "y-axis")
-        view.shape.add_arrow([-4, -4, -4], [-4, -4, 0], [0, 0, 1], 0.5, "z-axis")
+        axes_start = -np.ones(3)
+        arrow_radius = 0.1
+        text_size = 1
+        text_color = [0, 0, 0]  # black
+        arrow_colors = [
+            [1.0, 0.0, 0.0],  # Red
+            [0.0, 1.0, 0.0],  # Green
+            [0.0, 0.0, 1.0],  # Blue
+        ]
+        arrow_names = ['a', 'b', 'c']
+
+        for i, (arrow_color, arrow_name) in enumerate(zip(arrow_colors, arrow_names)):
+            start = list(axes_start)
+            basis_i = structure.lattice.matrix[i]
+            shift = basis_i / np.linalg.norm(basis_i)
+            end = list(axes_start + shift)
+
+            view.shape.add_arrow(start, end, arrow_color, arrow_radius, f"{arrow_name}-axis")
+            view.shape.add_text(end, text_color, text_size, arrow_name)
 
     view.camera = "perspective"
+
     return view
