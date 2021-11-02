@@ -13,6 +13,10 @@ from pymatgen.analysis.graphs import StructureGraph
 import numpy as np
 
 
+SPHERE_RADIUS = 0.5
+CYLINDER_RADIUS = 0.1
+
+
 @dataclass
 class PeriodicSiteImage:
     site: PeriodicSite
@@ -25,11 +29,16 @@ class ColorScheme:
     def __init__(self, scheme='jmol') -> None:
         with open(os.path.join(os.path.dirname(__file__), 'color_scheme.json')) as f:
             color_scheme = json.load(f)
-        self.color_sheme = color_scheme[scheme]
+        self.color_scheme = color_scheme[scheme]
 
-    def get_color(self, key):
-        color = [c / 256 for c in self.color_sheme[key]]
+    def get_color(self, key) -> Tuple[float, float, float]:
+        color = [c / 256 for c in self.color_scheme[key]]
         return color
+
+    def get_hex_color(self, key) -> str:
+        color = self.color_scheme[key]
+        hex = f'#{color[0]:02x}{color[1]:02x}{color[2]:02x}'
+        return hex
 
 
 def viewer(
@@ -48,6 +57,9 @@ def viewer(
         show_outside_bonds:
         show_axes: show a, b, and c axes iff true
     """
+    if not isinstance(structure, Structure):
+        raise ValueError("Only support pymatgen.core.Structure.")
+
     # wrap frac_coords in [0, 1)
     wrapped_sites = []
     for site in structure:
@@ -66,17 +78,20 @@ def viewer(
     structure_display = Structure.from_sites([si.site for si in displayed])
 
     view = show_pymatgen(structure_display)
+    view.clear()
     view.center()
-    view.remove_ball_and_stick()
 
+    # TODO: Add more color_scheme
     cc = ColorScheme(scheme='jmol')
-    for si in displayed:
-        color = cc.get_color(str(si.site.specie))
-        sphere_radius = 0.5
-        view.shape.add_sphere(
-            si.site.coords.tolist(),  # position
-            color,  # color
-            sphere_radius,  # radius
+    for i, si in enumerate(displayed):
+        # ref: https://github.com/nglviewer/nglview/issues/913
+        # selection=[i] is equivalent to f"@{i}" in "selection language".
+        # See https://nglviewer.org/ngl/api/manual/usage/selection-language.html
+        hex_color= cc.get_hex_color(str(si.site.specie))
+        view.add_spacefill(
+            radius=SPHERE_RADIUS,
+            selection=[i],
+            color=hex_color,
         )
 
     if local_env_strategy is None:
@@ -92,6 +107,7 @@ def viewer(
     if show_axes:
         view = _add_axes(view, structure.lattice.matrix)
 
+    # TODO: add orientation options
     view.camera = "perspective"
 
     return view
@@ -147,21 +163,18 @@ def _add_bonds(
             if (not show_outside_bonds) and (to_si not in displayed):
                 continue
 
-            # TODO: avoid double counting
             bonds.append((from_si, to_si))
 
     for from_si, to_si in bonds:
         # Ref: https://github.com/nglviewer/nglview/issues/912
-        color = [0, 0, 0]
         color = cc.get_color(str(from_si.site.specie))
         start = from_si.site.coords
         end = (from_si.site.coords + to_si.site.coords) / 2
-        cylinder_radius = 0.1
         view.shape.add_cylinder(
             start.tolist(),  # position1
             end.tolist(),  # position2
             color,  # color
-            cylinder_radius,  # radius
+            CYLINDER_RADIUS,  # radius
         )
 
     return view
