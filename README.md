@@ -4,7 +4,7 @@ nglview wrapper for crystal structure
 
 ## Installation
 
-1. Install (nglview)[https://github.com/nglviewer/nglview]
+1. Install [nglview](https://github.com/nglviewer/nglview)
 
 2. Install this package
 ```shell
