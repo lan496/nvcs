@@ -2,6 +2,8 @@ from __future__ import annotations
 from itertools import product
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
+import json
+import os
 
 from nglview import NGLWidget, show_pymatgen
 from pymatgen.core import Structure
@@ -17,14 +19,17 @@ class PeriodicSiteImage:
     site_index: int
     jimage: Tuple[int, int, int]
 
-    def __lt__(self, rhs: PeriodicSiteImage):
-        if self.site_index != rhs.site_index:
-            return (self.site_index < rhs.site_index)
-        else:
-            return (self.jimage < rhs.jimage)
 
-    def __gt__(self, rhs: PeriodicSiteImage):
-        return rhs.__lt__(self)
+class ColorScheme:
+
+    def __init__(self, scheme='jmol') -> None:
+        with open(os.path.join(os.path.dirname(__file__), 'color_scheme.json')) as f:
+            color_scheme = json.load(f)
+        self.color_sheme = color_scheme[scheme]
+
+    def get_color(self, key):
+        color = [c / 256 for c in self.color_sheme[key]]
+        return color
 
 
 def viewer(
@@ -62,16 +67,24 @@ def viewer(
 
     view = show_pymatgen(structure_display)
     view.center()
-
-    view.add_spacefill(radius=0.5, color_scheme='element')
     view.remove_ball_and_stick()
+
+    cc = ColorScheme(scheme='jmol')
+    for si in displayed:
+        color = cc.get_color(str(si.site.specie))
+        sphere_radius = 0.5
+        view.shape.add_sphere(
+            si.site.coords.tolist(),  # position
+            color,  # color
+            sphere_radius,  # radius
+        )
 
     if local_env_strategy is None:
         local_env_strategy = CrystalNN()
     sg = StructureGraph.with_local_env_strategy(wrapped_structure, local_env_strategy)
 
     if show_bonds:
-        view = _add_bonds(view, sg, displayed, show_outside_bonds)
+        view = _add_bonds(view, cc, sg, displayed, show_outside_bonds)
 
     if show_unitcell:
         view.add_unitcell()
@@ -117,6 +130,7 @@ def _get_displayed(structure: Structure, eps: float = 1e-8) -> List[PeriodicSite
 
 def _add_bonds(
     view: NGLWidget,
+    cc: ColorScheme,
     sg: StructureGraph,
     displayed: List[PeriodicSiteImage],
     show_outside_bonds: bool,
@@ -139,10 +153,13 @@ def _add_bonds(
     for from_si, to_si in bonds:
         # Ref: https://github.com/nglviewer/nglview/issues/912
         color = [0, 0, 0]
+        color = cc.get_color(str(from_si.site.specie))
+        start = from_si.site.coords
+        end = (from_si.site.coords + to_si.site.coords) / 2
         cylinder_radius = 0.1
         view.shape.add_cylinder(
-            from_si.site.coords.tolist(),  # position1
-            to_si.site.coords.tolist(),  # position2
+            start.tolist(),  # position1
+            end.tolist(),  # position2
             color,  # color
             cylinder_radius,  # radius
         )
