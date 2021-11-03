@@ -4,12 +4,14 @@ from typing import Optional, List, Tuple
 from dataclasses import dataclass
 
 from nglview import NGLWidget, show_pymatgen
+from numpy.lib.twodim_base import tri
 from pymatgen.core import Structure
 from pymatgen.core.sites import PeriodicSite
 from pymatgen.analysis.local_env import NearNeighbors, CrystalNN
 from pymatgen.analysis.graphs import StructureGraph
 from pymatgen.electronic_structure.core import Magmom
 import numpy as np
+from scipy.spatial import ConvexHull
 
 from nvc.color import ColorScheme
 
@@ -31,6 +33,8 @@ def viewer(
     show_axes: bool = True,
     local_env_strategy: Optional[NearNeighbors] = None,
     magmom_scale: float = 2.0,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
 ) -> NGLWidget:
     """
     Args:
@@ -42,6 +46,8 @@ def viewer(
         show_magmom: If true, show magnetic moments by arrows
         show_axes: show a, b, and c axes iff true
         magmon_scale:
+        width: in pixel
+        height: in pixel
     """
     if not isinstance(structure, Structure):
         raise ValueError("Only support pymatgen.core.Structure.")
@@ -87,6 +93,9 @@ def viewer(
 
     # TODO: add orientation options
     view.camera = "perspective"
+
+    if (width is not None) and (height is not None):
+        view._set_size(w=f"{width}px", h=f"{height}px")
 
     return view
 
@@ -171,8 +180,11 @@ def _add_connections(
     show_polyhedrons: bool,
 ) -> NGLWidget:
     bonds = []
+    polyhedrons = []
     for from_si in displayed:
-        for connected_site in sg.get_connected_sites(from_si.site_index, from_si.jimage):
+        connected_sites = sg.get_connected_sites(from_si.site_index, from_si.jimage)
+        draw_polyhedron = True
+        for connected_site in connected_sites:
             to_si = PeriodicSiteImage(
                 site=connected_site.site,
                 site_index=connected_site.index,
@@ -180,9 +192,18 @@ def _add_connections(
             )
 
             if (not show_outside_bonds) and (to_si not in displayed):
+                draw_polyhedron = False
                 continue
 
+            # We use the same strategy with Crystal Toolkit for drawing coordination polyhedrons
+            # ref: https://github.com/materialsproject/crystaltoolkit/blob/main/crystal_toolkit/renderables/site.py
+            if (from_si.site.specie > to_si.site.specie) or (from_si.site.specie == to_si.site.specie):
+                draw_polyhedron = False
+
             bonds.append((from_si, to_si))
+
+        if draw_polyhedron and (len(connected_sites) > 3):
+            polyhedrons.append((from_si.site, connected_sites))
 
     if show_bonds:
         for from_si, to_si in bonds:
@@ -191,13 +212,52 @@ def _add_connections(
             start = from_si.site.coords
             end = (from_si.site.coords + to_si.site.coords) / 2
             view.shape.add_cylinder(
-                start.tolist(),  # position1
-                end.tolist(),  # position2
+                list(start),  # position1
+                list(end),  # position2
                 color,  # color
                 0.1,  # radius
             )
 
+    if show_polyhedrons:
+        for center_site, vertices in polyhedrons:
+            # ref: https://github.com/nglviewer/ngl/issues/754
+            positions = np.array([list(csite.site.coords) for csite in vertices])
+            indices = _get_mesh(positions)
+
+            color = cc.get_color(str(center_site.specie))
+            colors = np.array([color for _ in range(len(positions))])
+            view.shape.add_mesh(
+                list(positions.flatten()),
+                list(colors.flatten()),
+                list(indices.flatten())
+            )
+
     return view
+
+
+def _get_mesh(positions: np.ndarray) -> np.ndarray:
+    """
+    Args:
+        positions: (num, 3)
+
+    Returns:
+        indices: (nfacet, 3), indices of triangles composing of convex hull
+    """
+    hull = ConvexHull(positions)
+    center = np.mean(positions, axis=0)
+
+    indices = []
+    for triangle in hull.simplices:
+        # sort indices in counter clockwise
+        d0 = positions[triangle[0]] - center
+        d1 = positions[triangle[1]] - center
+        d2 = positions[triangle[2]] - center
+        if np.dot(np.cross(d0, d1), d2) > 0:
+            indices.append([triangle[0], triangle[1], triangle[2]])
+        else:
+            indices.append([triangle[0], triangle[2], triangle[1]])
+
+    return np.array(indices)
 
 
 def _add_axes(view: NGLWidget, matrix: np.ndarray) -> NGLWidget:

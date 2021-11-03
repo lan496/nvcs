@@ -2,3 +2,5 @@ notebook
 nglview
 ase
 pymatgen
+scipy
+numpy
