@@ -160,12 +160,19 @@ def _add_sites(
 
             start = si.site.coords - 0.5 * vector
             end = si.site.coords + 0.5 * vector
-            view.shape.add_arrow(
+            # view.shape.add_arrow(
+            #     start.tolist(),
+            #     end.tolist(),
+            #     color,
+            #     arrow_radius,
+            # )
+            view._add_shape([(
+                'arrow',
                 start.tolist(),
                 end.tolist(),
                 color,
                 arrow_radius,
-            )
+            )])
 
     return view
 
@@ -211,12 +218,13 @@ def _add_connections(
             color = cc.get_color(str(from_si.site.specie))
             start = from_si.site.coords
             end = (from_si.site.coords + to_si.site.coords) / 2
-            view.shape.add_cylinder(
+            view._add_shape([(
+                'cylinder',
                 list(start),  # position1
                 list(end),  # position2
                 color,  # color
                 0.1,  # radius
-            )
+            )])
 
     if show_polyhedrons:
         for center_site, vertices in polyhedrons:
@@ -226,11 +234,14 @@ def _add_connections(
 
             color = cc.get_color(str(center_site.specie))
             colors = np.array([color for _ in range(len(positions))])
-            view.shape.add_mesh(
+            view._add_shape([(
+                'mesh',
                 list(positions.flatten()),
                 list(colors.flatten()),
-                list(indices.flatten())
-            )
+                list(indices.flatten())),
+            ])
+            opacity = 0.5
+            view.update_representation(component=len(view._ngl_component_ids) - 1, opacity=opacity)
 
     return view
 
