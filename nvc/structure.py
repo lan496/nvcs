@@ -2,8 +2,6 @@ from __future__ import annotations
 from itertools import product
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
-import json
-import os
 
 from nglview import NGLWidget, show_pymatgen
 from pymatgen.core import Structure
@@ -13,9 +11,7 @@ from pymatgen.analysis.graphs import StructureGraph
 from pymatgen.electronic_structure.core import Magmom
 import numpy as np
 
-
-SPHERE_RADIUS = 0.5
-CYLINDER_RADIUS = 0.1
+from nvc.color import ColorScheme
 
 
 @dataclass
@@ -25,28 +21,12 @@ class PeriodicSiteImage:
     jimage: Tuple[int, int, int]
 
 
-class ColorScheme:
-
-    def __init__(self, scheme='jmol') -> None:
-        with open(os.path.join(os.path.dirname(__file__), 'color_scheme.json')) as f:
-            color_scheme = json.load(f)
-        self.color_scheme = color_scheme[scheme]
-
-    def get_color(self, key) -> Tuple[float, float, float]:
-        color = [c / 256 for c in self.color_scheme[key]]
-        return color
-
-    def get_hex_color(self, key) -> str:
-        color = self.color_scheme[key]
-        hex = f'#{color[0]:02x}{color[1]:02x}{color[2]:02x}'
-        return hex
-
-
 def viewer(
     structure: Structure,
     show_unitcell: bool = True,
     show_bonds: bool = True,
     show_outside_bonds: bool = False,
+    show_polyhedrons: bool = True,
     show_magmom: bool = False,
     show_axes: bool = True,
     local_env_strategy: Optional[NearNeighbors] = None,
@@ -58,6 +38,7 @@ def viewer(
         show_unitcell: show frame of unit cell iff true
         show_bonds: show chemical bonds with `local_env_strategy` iff true
         show_outside_bonds:
+        show_polyhedrons:
         show_magmom: If true, show magnetic moments by arrows
         show_axes: show a, b, and c axes iff true
         magmon_scale:
@@ -87,42 +68,16 @@ def viewer(
     view.clear()
     view.center()
 
-    # TODO: Add more color_scheme
     cc = ColorScheme(scheme='jmol')
-    for i, si in enumerate(displayed):
-        # ref: https://github.com/nglviewer/nglview/issues/913
-        # selection=[i] is equivalent to f"@{i}" in "selection language".
-        # See https://nglviewer.org/ngl/api/manual/usage/selection-language.html
-        hex_color= cc.get_hex_color(str(si.site.specie))
-        view.add_spacefill(
-            radius=SPHERE_RADIUS,
-            selection=[i],
-            color=hex_color,
-        )
 
-        if show_magmom:
-            color = [1, 0, 0]  # red
-            arrow_radius = 0.1
-            magmom = Magmom(si.site.properties.get('magmom', np.zeros(3)))
-            vector = magmom.get_moment() * magmom_scale
-            if np.allclose(vector, 0):
-                continue
-
-            start = si.site.coords - 0.5 * vector
-            end = si.site.coords + 0.5 * vector
-            view.shape.add_arrow(
-                start.tolist(),
-                end.tolist(),
-                color,
-                arrow_radius,
-            )
+    view = _add_sites(view, cc, displayed, show_magmom, magmom_scale)
 
     if local_env_strategy is None:
         local_env_strategy = CrystalNN()
     sg = StructureGraph.with_local_env_strategy(wrapped_structure, local_env_strategy)
 
-    if show_bonds:
-        view = _add_bonds(view, cc, sg, displayed, show_outside_bonds)
+    if show_bonds or show_polyhedrons:
+        view = _add_connections(view, cc, sg, displayed, show_bonds, show_outside_bonds, show_polyhedrons)
 
     if show_unitcell:
         view.add_unitcell()
@@ -168,12 +123,52 @@ def _get_displayed(structure: Structure, eps: float = 1e-8) -> List[PeriodicSite
     return displayed
 
 
-def _add_bonds(
+def _add_sites(
+    view: NGLWidget,
+    cc: ColorScheme,
+    displayed: List[PeriodicSiteImage],
+    show_magmom: bool,
+    magmom_scale: float,
+) -> NGLWidget:
+    for i, si in enumerate(displayed):
+        # ref: https://github.com/nglviewer/nglview/issues/913
+        # selection=[i] is equivalent to f"@{i}" in "selection language".
+        # See https://nglviewer.org/ngl/api/manual/usage/selection-language.html
+        hex_color= cc.get_hex_color(str(si.site.specie))
+        view.add_spacefill(
+            radius=0.5,
+            selection=[i],
+            color=hex_color,
+        )
+
+        if show_magmom:
+            color = [1, 0, 0]  # red
+            arrow_radius = 0.1
+            magmom = Magmom(si.site.properties.get('magmom', np.zeros(3)))
+            vector = magmom.get_moment() * magmom_scale
+            if np.allclose(vector, 0):
+                continue
+
+            start = si.site.coords - 0.5 * vector
+            end = si.site.coords + 0.5 * vector
+            view.shape.add_arrow(
+                start.tolist(),
+                end.tolist(),
+                color,
+                arrow_radius,
+            )
+
+    return view
+
+
+def _add_connections(
     view: NGLWidget,
     cc: ColorScheme,
     sg: StructureGraph,
     displayed: List[PeriodicSiteImage],
+    show_bonds: bool,
     show_outside_bonds: bool,
+    show_polyhedrons: bool,
 ) -> NGLWidget:
     bonds = []
     for from_si in displayed:
@@ -189,17 +184,18 @@ def _add_bonds(
 
             bonds.append((from_si, to_si))
 
-    for from_si, to_si in bonds:
-        # Ref: https://github.com/nglviewer/nglview/issues/912
-        color = cc.get_color(str(from_si.site.specie))
-        start = from_si.site.coords
-        end = (from_si.site.coords + to_si.site.coords) / 2
-        view.shape.add_cylinder(
-            start.tolist(),  # position1
-            end.tolist(),  # position2
-            color,  # color
-            CYLINDER_RADIUS,  # radius
-        )
+    if show_bonds:
+        for from_si, to_si in bonds:
+            # Ref: https://github.com/nglviewer/nglview/issues/912
+            color = cc.get_color(str(from_si.site.specie))
+            start = from_si.site.coords
+            end = (from_si.site.coords + to_si.site.coords) / 2
+            view.shape.add_cylinder(
+                start.tolist(),  # position1
+                end.tolist(),  # position2
+                color,  # color
+                0.1,  # radius
+            )
 
     return view
 
