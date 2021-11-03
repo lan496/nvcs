@@ -10,6 +10,7 @@ from pymatgen.core import Structure
 from pymatgen.core.sites import PeriodicSite
 from pymatgen.analysis.local_env import NearNeighbors, CrystalNN
 from pymatgen.analysis.graphs import StructureGraph
+from pymatgen.electronic_structure.core import Magmom
 import numpy as np
 
 
@@ -46,8 +47,10 @@ def viewer(
     show_unitcell: bool = True,
     show_bonds: bool = True,
     show_outside_bonds: bool = False,
+    show_magmom: bool = False,
     show_axes: bool = True,
     local_env_strategy: Optional[NearNeighbors] = None,
+    magmom_scale: float = 2.0,
 ) -> NGLWidget:
     """
     Args:
@@ -55,7 +58,9 @@ def viewer(
         show_unitcell: show frame of unit cell iff true
         show_bonds: show chemical bonds with `local_env_strategy` iff true
         show_outside_bonds:
+        show_magmom: If true, show magnetic moments by arrows
         show_axes: show a, b, and c axes iff true
+        magmon_scale:
     """
     if not isinstance(structure, Structure):
         raise ValueError("Only support pymatgen.core.Structure.")
@@ -68,7 +73,8 @@ def viewer(
             PeriodicSite(
                 species=site.species,
                 coords=frac_coords,
-                lattice=structure.lattice
+                lattice=structure.lattice,
+                properties=site.properties
             )
         )
     wrapped_structure = Structure.from_sites(wrapped_sites)
@@ -93,6 +99,23 @@ def viewer(
             selection=[i],
             color=hex_color,
         )
+
+        if show_magmom:
+            color = [1, 0, 0]  # red
+            arrow_radius = 0.1
+            magmom = Magmom(si.site.properties.get('magmom', np.zeros(3)))
+            vector = magmom.get_moment() * magmom_scale
+            if np.allclose(vector, 0):
+                continue
+
+            start = si.site.coords - 0.5 * vector
+            end = si.site.coords + 0.5 * vector
+            view.shape.add_arrow(
+                start.tolist(),
+                end.tolist(),
+                color,
+                arrow_radius,
+            )
 
     if local_env_strategy is None:
         local_env_strategy = CrystalNN()
@@ -126,7 +149,8 @@ def _get_displayed(structure: Structure, eps: float = 1e-8) -> List[PeriodicSite
                 new_site = PeriodicSite(
                     species=site.species,
                     coords=new_frac_coords,
-                    lattice=structure.lattice
+                    lattice=structure.lattice,
+                    properties=site.properties,
                 )
                 ghosts.append(
                     PeriodicSiteImage(
