@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import math
 
 from nglview import NGLWidget, show_pymatgen
-from numpy.lib.twodim_base import tri
 from pymatgen.core import Structure
+from pymatgen.core.periodic_table import Element
 from pymatgen.core.sites import PeriodicSite
 from pymatgen.analysis.local_env import NearNeighbors, CrystalNN
 from pymatgen.analysis.graphs import StructureGraph
@@ -34,22 +34,25 @@ def viewer(
     show_magmom: bool = False,
     magmom_scale: float = 2.0,
     show_axes: bool = True,
-    view_plane: np.ndarray = np.array([0, 0, 1]),
     width: Optional[int] = None,
     height: Optional[int] = None,
 ) -> NGLWidget:
     """
     Args:
-        structure:
-        show_unitcell: show frame of unit cell iff true
-        show_bonds: show chemical bonds with `local_env_strategy` iff true
-        show_outside_bonds:
-        show_polyhedrons:
-        show_magmom: If true, show magnetic moments by arrows
-        show_axes: show a, b, and c axes iff true
-        magmon_scale:
+        structure: pymatgen's Structure object
+        show_unitcell: Iff true, show frame of unit cell
+        show_bonds: Iff true, show bonds with `local_env_strategy`
+        show_outside_bonds: Iff true, show bonds and polyhedrons connected to outside sites
+        show_polyhedrons: Iff true, show coordination polyhedrons
+        local_env_strategy: pymatgen's NearNeighbors object to detect connections of sites. If not specified, CrystalNN is used.
+        show_magmom: Iff true, show magnetic moments by arrows
+        magmon_scale: length scale of arrows to represent magmom
+        show_axes: Iff true, show a, b, and c axes
         width: in pixel
         height: in pixel
+
+    Returns:
+        view: NGLWidget
     """
     if not isinstance(structure, Structure):
         raise ValueError("Only support pymatgen.core.Structure.")
@@ -148,7 +151,7 @@ def _add_sites(
         # ref: https://github.com/nglviewer/nglview/issues/913
         # selection=[i] is equivalent to f"@{i}" in "selection language".
         # See https://nglviewer.org/ngl/api/manual/usage/selection-language.html
-        hex_color= cc.get_hex_color(str(si.site.specie))
+        hex_color = cc.get_hex_color(si.site)
         view.add_spacefill(
             radius=0.5,
             selection=[i],
@@ -224,7 +227,7 @@ def _add_connections(
         colors = []
         for from_si, to_si in bonds:
             # Ref: https://github.com/nglviewer/nglview/issues/912
-            color = cc.get_color(str(from_si.site.specie))
+            color = cc.get_color(from_si.site)
             start = from_si.site.coords
             end = (from_si.site.coords + to_si.site.coords) / 2
             positions1.append(start)
@@ -247,7 +250,7 @@ def _add_connections(
             positions = np.array([list(csite.site.coords) for csite in vertices])
             indices = _get_mesh(positions)
 
-            color = cc.get_color(str(center_site.specie))
+            color = cc.get_color(center_site)
             colors = [color for _ in range(len(positions))]
 
             # Currently, add_buffer(name='mesh') is not supported

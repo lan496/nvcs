@@ -1,6 +1,9 @@
-from typing import Tuple
+from typing import Tuple, Union
 import os
 import json
+
+from pymatgen.core.sites import PeriodicSite
+from pymatgen.core.periodic_table import Element, Species
 
 
 class ColorScheme:
@@ -11,11 +14,20 @@ class ColorScheme:
             color_scheme = json.load(f)
         self.color_scheme = color_scheme[scheme]
 
-    def get_color(self, key) -> Tuple[float, float, float]:
+    def get_color(self, site: PeriodicSite) -> Tuple[float, float, float]:
+        key = self._get_key(site.specie)
         color = [c / 256 for c in self.color_scheme[key]]
         return color
 
-    def get_hex_color(self, key) -> str:
+    def get_hex_color(self, site: PeriodicSite) -> str:
+        key = self._get_key(site.specie)
         color = self.color_scheme[key]
         hex = f'#{color[0]:02x}{color[1]:02x}{color[2]:02x}'
         return hex
+
+    def _get_key(self, specie: Union[Element, Species]) -> str:
+        if isinstance(specie, Element):
+            return str(specie)
+        else:
+            # with oxidation state
+            return str(specie.element)
