@@ -25,7 +25,7 @@ python -m pip install .
 
 See [examples/example.ipynb](examples/example.ipynb) for usage
 
-```shell
+```python
 from nvc import viewer
 from pymatgen.core import Structure
 
