@@ -2,6 +2,7 @@ from __future__ import annotations
 from itertools import product
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
+import math
 
 from nglview import NGLWidget, show_pymatgen
 from numpy.lib.twodim_base import tri
@@ -29,10 +30,11 @@ def viewer(
     show_bonds: bool = True,
     show_outside_bonds: bool = False,
     show_polyhedrons: bool = True,
-    show_magmom: bool = False,
-    show_axes: bool = True,
     local_env_strategy: Optional[NearNeighbors] = None,
+    show_magmom: bool = False,
     magmom_scale: float = 2.0,
+    show_axes: bool = True,
+    view_plane: np.ndarray = np.array([0, 0, 1]),
     width: Optional[int] = None,
     height: Optional[int] = None,
 ) -> NGLWidget:
@@ -91,7 +93,10 @@ def viewer(
     if show_axes:
         view = _add_axes(view, structure.lattice.matrix)
 
-    # TODO: add orientation options
+    # ref: https://github.com/nglviewer/nglview/issues/900
+    view.control.spin([1, 0, 0], -math.pi / 2)
+    view.control.spin([0, 0, 1], math.pi * 0.45)
+    view.control.spin([0, 1, 0], math.pi * 0.1)
     view.camera = "perspective"
 
     if (width is not None) and (height is not None):
@@ -288,7 +293,7 @@ def _get_mesh(positions: np.ndarray) -> np.ndarray:
 
 def _add_axes(view: NGLWidget, matrix: np.ndarray) -> NGLWidget:
     # Ref: https://github.com/pyiron/pyiron_atomistics/blob/c5df5e87745d7b575463f7b2a0b588e18007dc40/pyiron_atomistics/atomistics/structure/_visualize.py#L388-L403
-    axes_start = -np.ones(3)
+    axes_start = matrix[0] + np.array([0, -2, 0])
     arrow_radius = 0.1
     text_size = 1
     text_color = [0, 0, 0]  # black
