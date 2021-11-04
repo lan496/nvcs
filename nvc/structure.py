@@ -150,29 +150,30 @@ def _add_sites(
             color=hex_color,
         )
 
-        if show_magmom:
-            color = [1, 0, 0]  # red
-            arrow_radius = 0.1
+    if show_magmom:
+        positions1 = []
+        positions2 = []
+        for si in displayed:
             magmom = Magmom(si.site.properties.get('magmom', np.zeros(3)))
             vector = magmom.get_moment() * magmom_scale
             if np.allclose(vector, 0):
                 continue
-
             start = si.site.coords - 0.5 * vector
             end = si.site.coords + 0.5 * vector
-            # view.shape.add_arrow(
-            #     start.tolist(),
-            #     end.tolist(),
-            #     color,
-            #     arrow_radius,
-            # )
-            view._add_shape([(
-                'arrow',
-                start.tolist(),
-                end.tolist(),
-                color,
-                arrow_radius,
-            )])
+            positions1.append(start)
+            positions2.append(end)
+
+        color = [1, 0, 0]  # red
+        arrow_radius = 0.1
+        colors = [color for _ in range(len(positions1))]
+        radii = [arrow_radius for _ in range(len(positions1))]
+        view.shape.add_buffer(
+            'arrow',
+            position1=np.array(positions1).flatten().tolist(),
+            position2=np.array(positions2).flatten().tolist(),
+            color=np.array(colors).flatten().tolist(),
+            radius=radii,
+        )
 
     return view
 
@@ -213,18 +214,27 @@ def _add_connections(
             polyhedrons.append((from_si.site, connected_sites))
 
     if show_bonds:
+        positions1 = []
+        positions2 = []
+        colors = []
         for from_si, to_si in bonds:
             # Ref: https://github.com/nglviewer/nglview/issues/912
             color = cc.get_color(str(from_si.site.specie))
             start = from_si.site.coords
             end = (from_si.site.coords + to_si.site.coords) / 2
-            view._add_shape([(
-                'cylinder',
-                list(start),  # position1
-                list(end),  # position2
-                color,  # color
-                0.1,  # radius
-            )])
+            positions1.append(start)
+            positions2.append(end)
+            colors.append(color)
+
+        cylinder_radius = 0.1
+        radii = [cylinder_radius for _ in range(len(colors))]
+        view.shape.add_buffer(
+            'cylinder',
+            position1=np.array(positions1).flatten().tolist(),
+            position2=np.array(positions2).flatten().tolist(),
+            color=np.array(colors).flatten().tolist(),
+            radius=radii,
+        )
 
     if show_polyhedrons:
         for center_site, vertices in polyhedrons:
@@ -233,15 +243,20 @@ def _add_connections(
             indices = _get_mesh(positions)
 
             color = cc.get_color(str(center_site.specie))
-            colors = np.array([color for _ in range(len(positions))])
-            view._add_shape([(
-                'mesh',
-                list(positions.flatten()),
-                list(colors.flatten()),
-                list(indices.flatten())),
-            ])
+            colors = [color for _ in range(len(positions))]
+
+            # Currently, add_buffer(name='mesh') is not supported
+            view.shape.add_mesh(
+                positions.flatten().tolist(),         # position
+                np.array(colors).flatten().tolist(),  # color
+                indices.flatten().tolist(),           # index
+            )
+            # TODO: specify opacity here via params: BufferParameters
+            # ref: http://nglviewer.org/ngl/api/class/src/buffer/mesh-buffer.js~MeshBuffer.html
+
+            # ref: https://github.com/nglviewer/nglview/issues/785#issuecomment-486786411
             opacity = 0.5
-            view.update_representation(component=len(view._ngl_component_ids) - 1, opacity=opacity)
+            view.update_representation(component=len(view._ngl_component_ids), opacity=opacity)
 
     return view
 
