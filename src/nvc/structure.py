@@ -32,6 +32,7 @@ def viewer(
     local_env_strategy: NearNeighbors | None = None,
     show_magmom: bool = False,
     magmom_scale: float = 2.0,
+    arrow_radius: float = 0.1,
     show_axes: bool = True,
     width: int | None = None,
     height: int | None = None,
@@ -80,7 +81,7 @@ def viewer(
 
     cc = ColorScheme(scheme="jmol")
 
-    view = _add_sites(view, cc, displayed, show_magmom, magmom_scale)
+    view = _add_sites(view, cc, displayed, show_magmom, magmom_scale, arrow_radius)
 
     if local_env_strategy is None:
         local_env_strategy = CrystalNN()
@@ -147,6 +148,7 @@ def _add_sites(
     displayed: list[PeriodicSiteImage],
     show_magmom: bool,
     magmom_scale: float,
+    arrow_radius: float = 0.1,
 ) -> NGLWidget:
     for i, si in enumerate(displayed):
         # ref: https://github.com/nglviewer/nglview/issues/913
@@ -173,7 +175,6 @@ def _add_sites(
             positions2.append(end)
 
         color = [1, 0, 0]  # red
-        arrow_radius = 0.1
         colors = [color for _ in range(len(positions1))]
         radii = [arrow_radius for _ in range(len(positions1))]
         view.shape.add_buffer(
