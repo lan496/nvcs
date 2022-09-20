@@ -1,17 +1,16 @@
 from __future__ import annotations
-from itertools import product
-from typing import Optional, List, Tuple
-from dataclasses import dataclass
-import math
 
-from nglview import NGLWidget, show_pymatgen
-from pymatgen.core import Structure
-from pymatgen.core.periodic_table import Element
-from pymatgen.core.sites import PeriodicSite
-from pymatgen.analysis.local_env import NearNeighbors, CrystalNN
-from pymatgen.analysis.graphs import StructureGraph
-from pymatgen.electronic_structure.core import Magmom
+import math
+from dataclasses import dataclass
+from itertools import product
+
 import numpy as np
+from nglview import NGLWidget, show_pymatgen
+from pymatgen.analysis.graphs import StructureGraph
+from pymatgen.analysis.local_env import CrystalNN, NearNeighbors
+from pymatgen.core import Structure
+from pymatgen.core.sites import PeriodicSite
+from pymatgen.electronic_structure.core import Magmom
 from scipy.spatial import ConvexHull
 
 from nvc.color import ColorScheme
@@ -21,7 +20,7 @@ from nvc.color import ColorScheme
 class PeriodicSiteImage:
     site: PeriodicSite
     site_index: int
-    jimage: Tuple[int, int, int]
+    jimage: tuple[int, int, int]
 
 
 def viewer(
@@ -30,12 +29,12 @@ def viewer(
     show_bonds: bool = True,
     show_outside_bonds: bool = False,
     show_polyhedrons: bool = True,
-    local_env_strategy: Optional[NearNeighbors] = None,
+    local_env_strategy: NearNeighbors | None = None,
     show_magmom: bool = False,
     magmom_scale: float = 2.0,
     show_axes: bool = True,
-    width: Optional[int] = None,
-    height: Optional[int] = None,
+    width: int | None = None,
+    height: int | None = None,
 ) -> NGLWidget:
     """
     Args:
@@ -66,7 +65,7 @@ def viewer(
                 species=site.species,
                 coords=frac_coords,
                 lattice=structure.lattice,
-                properties=site.properties
+                properties=site.properties,
             )
         )
     wrapped_structure = Structure.from_sites(wrapped_sites)
@@ -79,7 +78,7 @@ def viewer(
     view.clear()
     view.center()
 
-    cc = ColorScheme(scheme='jmol')
+    cc = ColorScheme(scheme="jmol")
 
     view = _add_sites(view, cc, displayed, show_magmom, magmom_scale)
 
@@ -88,7 +87,9 @@ def viewer(
     sg = StructureGraph.with_local_env_strategy(wrapped_structure, local_env_strategy)
 
     if show_bonds or show_polyhedrons:
-        view = _add_connections(view, cc, sg, displayed, show_bonds, show_outside_bonds, show_polyhedrons)
+        view = _add_connections(
+            view, cc, sg, displayed, show_bonds, show_outside_bonds, show_polyhedrons
+        )
 
     if show_unitcell:
         view.add_unitcell()
@@ -108,7 +109,7 @@ def viewer(
     return view
 
 
-def _get_displayed(structure: Structure, eps: float = 1e-8) -> List[PeriodicSiteImage]:
+def _get_displayed(structure: Structure, eps: float = 1e-8) -> list[PeriodicSiteImage]:
     ghosts = []
     for site_index, site in enumerate(structure):
         for jimage in product([0, 1 - eps], repeat=3):
@@ -128,7 +129,7 @@ def _get_displayed(structure: Structure, eps: float = 1e-8) -> List[PeriodicSite
                     PeriodicSiteImage(
                         site=new_site,
                         site_index=site_index,
-                        jimage=tuple(map(int, np.around(jimage).tolist()))
+                        jimage=tuple(map(int, np.around(jimage).tolist())),  # type: ignore
                     )
                 )
 
@@ -143,7 +144,7 @@ def _get_displayed(structure: Structure, eps: float = 1e-8) -> List[PeriodicSite
 def _add_sites(
     view: NGLWidget,
     cc: ColorScheme,
-    displayed: List[PeriodicSiteImage],
+    displayed: list[PeriodicSiteImage],
     show_magmom: bool,
     magmom_scale: float,
 ) -> NGLWidget:
@@ -162,7 +163,7 @@ def _add_sites(
         positions1 = []
         positions2 = []
         for si in displayed:
-            magmom = Magmom(si.site.properties.get('magmom', np.zeros(3)))
+            magmom = Magmom(si.site.properties.get("magmom", np.zeros(3)))
             vector = magmom.get_moment() * magmom_scale
             if np.allclose(vector, 0):
                 continue
@@ -176,7 +177,7 @@ def _add_sites(
         colors = [color for _ in range(len(positions1))]
         radii = [arrow_radius for _ in range(len(positions1))]
         view.shape.add_buffer(
-            'arrow',
+            "arrow",
             position1=np.array(positions1).flatten().tolist(),
             position2=np.array(positions2).flatten().tolist(),
             color=np.array(colors).flatten().tolist(),
@@ -190,7 +191,7 @@ def _add_connections(
     view: NGLWidget,
     cc: ColorScheme,
     sg: StructureGraph,
-    displayed: List[PeriodicSiteImage],
+    displayed: list[PeriodicSiteImage],
     show_bonds: bool,
     show_outside_bonds: bool,
     show_polyhedrons: bool,
@@ -213,7 +214,9 @@ def _add_connections(
 
             # We use the same strategy with Crystal Toolkit for drawing coordination polyhedrons
             # ref: https://github.com/materialsproject/crystaltoolkit/blob/main/crystal_toolkit/renderables/site.py
-            if (from_si.site.specie > to_si.site.specie) or (from_si.site.specie == to_si.site.specie):
+            if (from_si.site.specie > to_si.site.specie) or (
+                from_si.site.specie == to_si.site.specie
+            ):
                 draw_polyhedron = False
 
             bonds.append((from_si, to_si))
@@ -237,7 +240,7 @@ def _add_connections(
         cylinder_radius = 0.1
         radii = [cylinder_radius for _ in range(len(colors))]
         view.shape.add_buffer(
-            'cylinder',
+            "cylinder",
             position1=np.array(positions1).flatten().tolist(),
             position2=np.array(positions2).flatten().tolist(),
             color=np.array(colors).flatten().tolist(),
@@ -255,9 +258,9 @@ def _add_connections(
 
             # Currently, add_buffer(name='mesh') is not supported
             view.shape.add_mesh(
-                positions.flatten().tolist(),         # position
+                positions.flatten().tolist(),  # position
                 np.array(colors).flatten().tolist(),  # color
-                indices.flatten().tolist(),           # index
+                indices.flatten().tolist(),  # index
             )
             # TODO: specify opacity here via params: BufferParameters
             # ref: http://nglviewer.org/ngl/api/class/src/buffer/mesh-buffer.js~MeshBuffer.html
@@ -305,7 +308,7 @@ def _add_axes(view: NGLWidget, matrix: np.ndarray) -> NGLWidget:
         [0.0, 1.0, 0.0],  # Green
         [0.0, 0.0, 1.0],  # Blue
     ]
-    arrow_names = ['a', 'b', 'c']
+    arrow_names = ["a", "b", "c"]
 
     for i, (arrow_color, arrow_name) in enumerate(zip(arrow_colors, arrow_names)):
         start = list(axes_start)
