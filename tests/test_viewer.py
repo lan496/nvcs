@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pymatgen.analysis.local_env import VoronoiNN
 
-from nvc import viewer
+from nvcs import viewer
 
 
 @pytest.mark.parametrize("structure_fixture", ["rutile", "afm_nio"])

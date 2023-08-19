@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # Project
 ###############################################################################
 [project]
-name = "nvc"
+name = "nvcs"
 dynamic = ["version"]
 readme = "README.md"
 description = "nglview wrapper for crystal structure"
@@ -43,8 +43,8 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/lan496/nvc"
-repository = "https://github.com/lan496/nvc"
+homepage = "https://github.com/lan496/nvcs"
+repository = "https://github.com/lan496/nvcs"
 
 [project.optional-dependencies]
 dev = [

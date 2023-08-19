@@ -13,7 +13,7 @@ from pymatgen.core.sites import PeriodicSite
 from pymatgen.electronic_structure.core import Magmom
 from scipy.spatial import ConvexHull
 
-from nvc.color import ColorScheme
+from nvcs.color import ColorScheme
 
 
 @dataclass

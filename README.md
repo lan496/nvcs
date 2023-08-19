@@ -1,4 +1,4 @@
-# nvc
+# nvcs
 nglview wrapper for crystal structure
 
 ## Gallery
@@ -11,14 +11,8 @@ nglview wrapper for crystal structure
 
 ## Installation
 
-1. Install [nglview](https://github.com/nglviewer/nglview)
-
-2. Install this package
-```shell
-git clone git@github.com:lan496/nvc.git
-cd nvc
-python -m pip install -r requirements.txt
-python -m pip install .
+```
+pip install nvcs
 ```
 
 ## Example
@@ -26,19 +20,11 @@ python -m pip install .
 See [examples/example.ipynb](examples/example.ipynb) for usage
 
 ```python
-from nvc import viewer
+from nvcs import viewer
 from pymatgen.core import Structure
 
 structure = Structure.from_file('some_structure.cif')
 
 view = viewer(structure)
 view
-```
-
-## Developments
-
-```shell
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-python -m pip install -e .
 ```
