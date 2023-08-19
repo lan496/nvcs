@@ -1,5 +1,13 @@
 # nvcs
+[![testing](https://github.com/lan496/nvcs/actions/workflows/testing.yml/badge.svg)](https://github.com/lan496/nvcs/actions/workflows/testing.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://badge.fury.io/py/nvcs.svg)](https://badge.fury.io/py/nvcs)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/nvcs)
+
 nglview wrapper for crystal structure
+
+- GitHub: https://github.com/lan496/nvcs/
+- PyPI: https://pypi.org/project/nvcs/
 
 ## Gallery
 
