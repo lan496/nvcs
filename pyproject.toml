@@ -1,10 +1,91 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
 build-backend = "setuptools.build_meta"
+
+###############################################################################
+# Project
+###############################################################################
+[project]
+name = "nvc"
+dynamic = ["version"]
+readme = "README.md"
+description = "nglview wrapper for crystal structure"
+authors = [
+    {name = "Kohei Shinohara", email = "kshinohara0508@gmail.com"},
+]
+requires-python = ">=3.8.0"
+license = {file = "LICENSE"}
+classifiers = [
+    # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "setuptools",
+    "setuptools_scm",
+    "wheel",
+    "typing_extensions",
+    "numpy",
+    "scipy",
+    "ase",
+    "pymatgen",
+    "ipykernel",
+    "notebook>=4.2",
+    "ipywidgets",
+    "nglview>=3.0.4",
+]
+
+[project.urls]
+homepage = "https://github.com/lan496/nvc"
+repository = "https://github.com/lan496/nvc"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pre-commit",
+    "black",
+    "mypy",
+    "toml",
+]
+
+###############################################################################
+# Setuptools
+###############################################################################
+
+[tool.setuptools]
+zip-safe = false
+
+###############################################################################
+# Other tools
+###############################################################################
+
+# Enable version inference
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+src = ["src", "tests", "exp"]
+line-length = 99
+ignore = [
+    "E501",
+    "W605",
+]
+exclude = [
+    'docs',
+]
 
 [tool.black]
 line-length = 99
-target-version = ['py37', 'py38', 'py39']
+target-version = ['py38', 'py39', 'py310', 'py311']
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -21,3 +102,9 @@ exclude = '''
   | docs
 )/
 '''
+
+[tool.mypy]
+exclude = [
+  'docs',
+]
+warn_no_return = false
