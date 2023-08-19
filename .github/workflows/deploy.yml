@@ -13,7 +13,7 @@ jobs:
     # GitHub environment
     environment:
       name: release
-      url: https://pypi.org/project/spinspg/
+      url: https://pypi.org/project/nvcs/
     permissions:
       id-token: write
 
