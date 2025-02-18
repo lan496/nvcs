@@ -85,7 +85,7 @@ def viewer(
 
     if local_env_strategy is None:
         local_env_strategy = CrystalNN()
-    sg = StructureGraph.with_local_env_strategy(wrapped_structure, local_env_strategy)
+    sg = StructureGraph.from_local_env_strategy(wrapped_structure, local_env_strategy)
 
     if show_bonds or show_polyhedrons:
         view = _add_connections(
