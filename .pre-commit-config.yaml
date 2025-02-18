@@ -3,32 +3,26 @@ default_language_version:
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.3.0
+  rev: v5.0.0
   hooks:
   - id: check-added-large-files
   - id: check-yaml
   - id: check-json
   - id: debug-statements
   - id: end-of-file-fixer
-
-- repo: https://github.com/psf/black   # formatter
-  rev: 22.12.0
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.9.6
   hooks:
-  - id: black
-
-- repo: https://github.com/astral-sh/ruff-pre-commit  # linter
-  rev: v0.0.272
-  hooks:
-  - id: ruff
-    args: [ --fix, --exit-non-zero-on-fix ]
-
+    - id: ruff-format
+    - id: ruff
+      args: [ "--fix", "--show-fixes" ]
+      types_or: [python, pyi]
 - repo: https://github.com/pre-commit/mirrors-mypy  # type annotation
-  rev: v0.991
+  rev: v1.15.0
   hooks:
   - id: mypy
     exclude: ^docs/
-
 - repo: https://github.com/nbQA-dev/nbQA  # Notebook
-  rev: 1.6.1
+  rev: 1.9.1
   hooks:
   - id: nbqa-black
